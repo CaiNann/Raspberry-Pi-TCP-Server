@@ -1,4 +1,5 @@
 #include <sys/socket.h>
+#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -10,19 +11,29 @@ int main(void) {
 
 	struct sockaddr_in address;
 	address.sin_family = AF_INET;
-	address.sin_addr.s_addr = inet_addr("127.0.0.1");  // Bind socket with
+	address.sin_addr.s_addr = INADDR_ANY;  // Bind socket with
 													   // localhost
 	address.sin_port = htons(8080);        // Port 8080
 
-	bind(server_fd, (struct sockaddr*)&address, (socklen_t)sizeof(address));
+	int	addr_bind = bind(server_fd, (struct sockaddr*)&address, (socklen_t)sizeof(address));
+
+	if (addr_bind < 0) {
+		perror("bind failed");
+		return 1;
+	}
 
 	listen(server_fd, 3);
-	printf("Server is now listening on port %d...\n", address.sin_port); 
+	printf("Server is now listening on port %d...\n", ntohs(address.sin_port)); 
 
 	for(;;) {
-		int addrlength = sizeof(address);
-		int client_fd = accept(server_fd, (struct sockaddr*)&address, (socklen_t*)&addrlength);
-		printf("Connection accepted!");
+		struct sockaddr_in client_addr;
+		socklen_t client_len = sizeof(client_addr);
+		int client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
+		if (client_fd < 0) {
+ 	    	perror("accept failed");
+    		return 1;
+		}
+		printf("Connection accepted!\n");
 
 		char buffer[1024] = {0};
 		size_t bytes = read(client_fd, buffer, 1024);
