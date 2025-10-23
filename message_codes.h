@@ -1,0 +1,10 @@
+#ifndef MESSAGE_CODES_H
+#define MESSAGE_CODES_H
+
+#define REQ_PASSWRD  5
+#define ACCEPT_PASSWRD 6
+#define CHARLIM_PASSWRD 7
+#define DENY_PASSWRD 8
+#define TIMEOUT_ERR 9
+
+#endif
