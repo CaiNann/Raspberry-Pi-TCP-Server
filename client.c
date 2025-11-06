@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include "message_codes.h"
 #include <errno.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -7,6 +8,10 @@
 #include <string.h>
 #include <netinet/in.h>
 #include <sys/types.h>
+
+#define BUF_SIZE 128
+
+int server_sig;
 
 int main(int argc, char *args[]) {
 	int client_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -27,8 +32,26 @@ int main(int argc, char *args[]) {
 		return 1;
 	}
 	printf("Successfully connected to server...\n");
+	
+	while (1) {
+		ssize_t read_bytes = read(client_fd, &server_sig, sizeof(server_sig)); 
+		if (read_bytes < 0) {
+			perror("Read from server failed");
+			exit(1);
+		}
 
-	if (argc == 1) {
+		switch (server_sig) {
+			case REQ_PASSWRD:
+				char* passwrd = get_passwrd();
+				int exchange = pass_exchange(client_fd, passwrd);
+				if (exchange == 0) {
+					//file_upload();
+				}
+		}
+
+	}
+
+/*	if (argc == 1) {
 		char *message = "Hello Server!\n";
 		size_t w_bytes = write(client_fd, message, strlen(message));
 
@@ -67,6 +90,7 @@ int main(int argc, char *args[]) {
 			close(input_fd);
 		}
 	}
+	*/
 
 	close(client_fd);
 	printf("Closed connection to server.\n");
