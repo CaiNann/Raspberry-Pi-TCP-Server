@@ -45,7 +45,9 @@ int main(int argc, char *args[]) {
 				char* passwrd = get_passwrd();
 				int exchange = pass_exchange(client_fd, passwrd);
 				if (exchange == 0) {
-					//file_upload();
+					printf("Password accepted\n");
+					close(client_fd);
+					return 0;
 				}
 		}
 
@@ -92,8 +94,59 @@ int main(int argc, char *args[]) {
 	}
 	*/
 
-	close(client_fd);
-	printf("Closed connection to server.\n");
+	char* get_passwrd(void) {
+		if (write(STDOUT_FILENO, "Password: ", 10) < 0) {
+			perror("Write failed");
+			return NULL;
+		}
+		char passwrd[128];
+		memset(passwrd, 0, 128);
+		int bytes_read = read(STDIN_FILENO, passwrd, sizeof(passwrd))
+		if (bytes_read < 0) {
+			perror("Read failed");
+			return NULL;
+		}
+		passwrd[bytes_read] = '\0';
+		return passwrd;
+	}
 
-	return 0;
+	int pass_exchange(int server_fd, char* passwrd) {
+
+		int server_code = 0;
+
+		if (write(server_fd, passwrd, sizeof(passwrd)) < 0) {
+			perror("Write failed");
+			return 1;
+		}
+		
+		if (read(server_fd, &server_code, sizeof(server_code)) < 0) {
+			perror("Read failed");
+			return 1;
+		}
+
+		if (server_code == ACCEPT_PASSWRD) {
+			return 0;
+		}
+		if (server_code == CHARLIM_PASSWRD) {
+			if (write(STDOUT_FILENO, "Password too long, try again\n", 29) < 0) {
+				perror("Write failed");
+				return 1;
+			}
+			return 2;
+		}
+		if (server_code == DENY_PASSWRD) {
+			if (write(STDOUT_FILENO, "Incorrect password, try again\n", 30) < 0) {
+				perror("Write failed");
+				return 1;
+			}
+			return 3;
+		}
+		if (server_code == TIMEOUT_ERR) {
+			if (write(STDOUT_FILENO, "Too many attempts...", 20) < 0) {
+				perror("Write failed");
+				return 1;
+			}
+			exit(1);
+		}
+	}
 }

@@ -1,4 +1,5 @@
 #include <sys/socket.h>
+#include <fcntl.h>
 #include "server.h"
 #include "message_codes.h"
 #include <openssl/sha.h>
@@ -7,7 +8,10 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
+#define BUF_SIZE 128
 
 int main(void) {
 
@@ -23,7 +27,7 @@ int main(void) {
     		exit(1);
 		}
 
-		if (check_password(client_fd) == 0) {
+		if (check_passwrd(client_fd) == 1) {
 			printf("Unauthorized user, closing connection...");
 			close(client_fd);
 			continue;
@@ -38,7 +42,7 @@ int main(void) {
 			exit(1);
 		}
 
-		printf("%d bytes read from client: %s\n", bytes, buffer);
+		printf("%zd bytes read from client: %s\n", bytes, buffer);
 
 		close(client_fd);
 	}
@@ -77,13 +81,19 @@ int start_server(void) {
 	return server_fd;
 }
 
-int check_password(int client_fd) {
+int check_passwrd(int client_fd) {
+	int req_passwrd = htonl(REQ_PASSWRD);
+	int accept_passwrd = htonl(ACCEPT_PASSWRD);
+	int charlim_passwrd = htonl(CHARLIM_PASSWRD);
+	int deny_passwrd = htonl(DENY_PASSWRD);
+	int timeout_err = htonl(TIMEOUT_ERR);
+
 	int retry = 0;
 	int pass_file = open("pass.txt", O_RDONLY);
 	char buffer[65];
-	memset(buffer, 0, sizoef(buffer));
+	memset(buffer, 0, sizeof(buffer));
 	while (retry != 3) {
-		if (write(client_fd, &REQ_PASSWRD, sizeof(REQ_PASSWORD)) < 0) {
+		if (write(client_fd, &req_passwrd, sizeof(req_passwrd)) < 0) {
 			perror("Failed to request password");
 			exit(1);
 		}
@@ -94,7 +104,7 @@ int check_password(int client_fd) {
 		}
 		if (pass_read == 65) {
 			retry++;
-			if (write(client_fd, &CHARLIM_PASSWRD, sizeof(CHARLIM_PASSWRD)) < 0) {
+			if (write(client_fd, &charlim_passwrd, sizeof(charlim_passwrd)) < 0) {
 				perror("Writing error failed");
 				exit(1);
 			}
@@ -102,19 +112,27 @@ int check_password(int client_fd) {
 		}
 		buffer[pass_read] = '\0';
 		if (match_passwrd(pass_file, buffer)) {
-			if (write(client_fd, &ACCEPT_PASSWRD, sizeof(ACCEPT_PASSWRD)) < 0) {
+			if (write(client_fd, &accept_passwrd, sizeof(accept_passwrd)) < 0) {
 				perror("Writing error failed");
 				exit(1);
 			}
-			return 1;
-		} else {
-			if (write(client_fd, &DENY_PASSWRD, sizeof(DENY_PASSWRD)) < 0) {
-				perror("Writing error failed");
-				exit(1);
-			}
+			close(pass_file);
 			return 0;
+		} else {
+			if (write(client_fd, &deny_passwrd, sizeof(deny_passwrd)) < 0) {
+				perror("Writing error failed");
+				exit(1);
+			}
+			retry++;
+			continue;
 		}
 	}
+	if (write(client_fd, &timeout_err, sizeof(timeout_err)) < 0) {
+		perror("Writing error failed");
+		exit(1);
+	}
+	close(pass_file);
+	return 1;
 }
 
 int match_passwrd(int fd, char *passwrd) {
@@ -153,7 +171,7 @@ int match_passwrd(int fd, char *passwrd) {
     // Check last line if file doesn't end with newline
     if (line_len > 0) {
         line[line_len] = '\0';
-        if (strcmp(line, buffer) == 0) {
+        if (strcmp(line, passwrd) == 0) {
             close(fd);
             return 1;
         }
