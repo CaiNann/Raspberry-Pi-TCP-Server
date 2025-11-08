@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include "message_codes.h"
+#include "client.h"
+#include <stdlib.h>
 #include <errno.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -34,24 +36,32 @@ int main(int argc, char *args[]) {
 	printf("Successfully connected to server...\n");
 	
 	while (1) {
+		printf("About to read from server to wait for code\n");
 		ssize_t read_bytes = read(client_fd, &server_sig, sizeof(server_sig)); 
+		server_sig = ntohl(server_sig);
+		printf("Code read from server: %d\n", server_sig);
 		if (read_bytes < 0) {
 			perror("Read from server failed");
 			exit(1);
 		}
 
+		printf("Entering switch statement\n");
 		switch (server_sig) {
-			case REQ_PASSWRD:
-				char* passwrd = get_passwrd();
+			case REQ_PASSWRD: {
+				char passwrd[128];
+				get_passwrd(passwrd, sizeof(passwrd));
+				printf("Got password from user: %s\n", passwrd);
 				int exchange = pass_exchange(client_fd, passwrd);
+				printf("Exchange return: %d\n", exchange);
 				if (exchange == 0) {
 					printf("Password accepted\n");
 					close(client_fd);
 					return 0;
 				}
+			}
 		}
-
 	}
+}
 
 /*	if (argc == 1) {
 		char *message = "Hello Server!\n";
@@ -94,59 +104,60 @@ int main(int argc, char *args[]) {
 	}
 	*/
 
-	char* get_passwrd(void) {
-		if (write(STDOUT_FILENO, "Password: ", 10) < 0) {
-			perror("Write failed");
-			return NULL;
-		}
-		char passwrd[128];
-		memset(passwrd, 0, 128);
-		int bytes_read = read(STDIN_FILENO, passwrd, sizeof(passwrd))
-		if (bytes_read < 0) {
-			perror("Read failed");
-			return NULL;
-		}
-		passwrd[bytes_read] = '\0';
-		return passwrd;
+int get_passwrd(char* buf, ssize_t size) {
+	if (write(STDOUT_FILENO, "Password: ", 10) < 0) {
+		perror("Write failed");
+		return 1;
 	}
-
-	int pass_exchange(int server_fd, char* passwrd) {
-
-		int server_code = 0;
-
-		if (write(server_fd, passwrd, sizeof(passwrd)) < 0) {
-			perror("Write failed");
-			return 1;
-		}
-		
-		if (read(server_fd, &server_code, sizeof(server_code)) < 0) {
-			perror("Read failed");
-			return 1;
-		}
-
-		if (server_code == ACCEPT_PASSWRD) {
-			return 0;
-		}
-		if (server_code == CHARLIM_PASSWRD) {
-			if (write(STDOUT_FILENO, "Password too long, try again\n", 29) < 0) {
-				perror("Write failed");
-				return 1;
-			}
-			return 2;
-		}
-		if (server_code == DENY_PASSWRD) {
-			if (write(STDOUT_FILENO, "Incorrect password, try again\n", 30) < 0) {
-				perror("Write failed");
-				return 1;
-			}
-			return 3;
-		}
-		if (server_code == TIMEOUT_ERR) {
-			if (write(STDOUT_FILENO, "Too many attempts...", 20) < 0) {
-				perror("Write failed");
-				return 1;
-			}
-			exit(1);
-		}
+	int bytes_read = read(STDIN_FILENO, buf, size);
+	if (bytes_read < 0) {
+		perror("Read failed");
+		return 1;
 	}
+	buf[bytes_read - 1] = '\0';
+	printf("Password entered from user: %s\n", buf);
+	return 0;
 }
+
+int pass_exchange(int server_fd, char* passwrd) {
+
+	int server_code = 0;
+
+	if (write(server_fd, passwrd, sizeof(passwrd)) < 0) {
+		perror("Write failed");
+		return 1;
+	}
+	
+	if (read(server_fd, &server_code, sizeof(server_code)) < 0) {
+		perror("Read failed");
+		return 1;
+	}
+	server_code = ntohl(server_code);
+
+	if (server_code == ACCEPT_PASSWRD) {
+		return 0;
+	}
+	if (server_code == CHARLIM_PASSWRD) {
+		if (write(STDOUT_FILENO, "Password too long, try again\n", 29) < 0) {
+			perror("Write failed");
+			return 1;
+		}
+		return 2;
+	}
+	if (server_code == DENY_PASSWRD) {
+		if (write(STDOUT_FILENO, "Incorrect password, try again\n", 30) < 0) {
+			perror("Write failed");
+			return 1;
+		}
+		return 3;
+	}
+	if (server_code == TIMEOUT_ERR) {
+		if (write(STDOUT_FILENO, "Too many attempts...", 20) < 0) {
+			perror("Write failed");
+			return 1;
+		}
+		exit(1);
+	}
+	return 4;
+}
+
