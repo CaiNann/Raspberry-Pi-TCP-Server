@@ -51,8 +51,21 @@ int main(void) {
 				int exchange = pass_exchange(client_fd, passwrd);
 				if (exchange == 0) {
 					printf("Password accepted\n");
-					close(client_fd);
-					return 0;
+					write_to(STDOUT_FILENO, "File upload or download? (U/D): ");
+					char buffer[BUF_SIZE];
+					int read_bytes = read_from(STDIN_FILENO, buffer, BUF_SIZE); 
+					if (buffer[0] == 'U') {
+						init_file_upload();
+						continue;
+					}
+					if (buffer[0] == 'D') {
+						init_file_download();
+						continue;
+					}
+					else {
+						write_to(STDOUT_FILENO, "Invalid input\n");
+					}
+					continue;
 				}
 			}
 		}
@@ -101,15 +114,8 @@ int main(void) {
 	*/
 
 int get_passwrd(char* buf, ssize_t size) {
-	if (write(STDOUT_FILENO, "Password: ", 10) < 0) {
-		perror("Write failed");
-		return 1;
-	}
-	int bytes_read = read(STDIN_FILENO, buf, size);
-	if (bytes_read < 0) {
-		perror("Read failed");
-		return 1;
-	}
+	write_to(STDOUT_FILENO, "Password: ");
+	int bytes_read = read_from(STDIN_FILENO, buf, size);
 	buf[bytes_read - 1] = '\0';
 	return 0;
 }
@@ -123,36 +129,41 @@ int pass_exchange(int server_fd, char* passwrd) {
 		return 1;
 	}
 	
-	if (read(server_fd, &server_code, sizeof(server_code)) < 0) {
-		perror("Read failed");
-		return 1;
-	}
+	read_from(server_fd, &server_code, sizeof(server_code));
+
 	server_code = ntohl(server_code);
 
 	if (server_code == ACCEPT_PASSWRD) {
 		return 0;
 	}
 	if (server_code == CHARLIM_PASSWRD) {
-		if (write(STDOUT_FILENO, "Password too long, try again\n", 29) < 0) {
-			perror("Write failed");
-			return 1;
-		}
+		write_to(STDOUT_FILENO, "Password too long, try again\n");
 		return 2;
 	}
 	if (server_code == DENY_PASSWRD) {
-		if (write(STDOUT_FILENO, "Incorrect password, try again\n", 30) < 0) {
-			perror("Write failed");
-			return 1;
-		}
+		write_to(STDOUT_FILENO, "Incorrect password, try again\n");
 		return 3;
 	}
 	if (server_code == TIMEOUT_ERR) {
-		if (write(STDOUT_FILENO, "Too many attempts...", 20) < 0) {
-			perror("Write failed");
-			return 1;
-		}
+		write_to(STDOUT_FILENO, "Too many attempts...");
 		exit(1);
 	}
 	return 4;
 }
 
+int write_to(int fd, char* string) {
+	if (write(fd, string, strlen(string)) < 0) {
+		perror("Write failed");
+		exit(1);
+	}
+	return 0;
+}
+
+int read_from(int fd, char* buffer, size_t num_bytes) {
+	int num_bytes_read = read(fd, buffer, num_bytes);
+	if (num_bytes_read < 0) {
+		perror("Read failed");
+		exit(1);
+	}
+	return num_bytes_read;
+}
