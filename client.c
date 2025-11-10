@@ -12,10 +12,11 @@
 #include <sys/types.h>
 
 #define BUF_SIZE 128
+#define SERVER_ADDR "192.168.1.134"
 
 int server_sig;
 
-int main(int argc, char *args[]) {
+int main(void) {
 	int client_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (client_fd < 0) {
 		perror("Socket failed");
@@ -26,7 +27,7 @@ int main(int argc, char *args[]) {
 	memset(&address, 0, sizeof(address));
 	address.sin_family = AF_INET;
 	address.sin_port = htons(8080);
-	address.sin_addr.s_addr = inet_addr("192.168.1.134");
+	address.sin_addr.s_addr = inet_addr(SERVER_ADDR);
 
 	int	connection = connect(client_fd, (struct sockaddr*)&address, (socklen_t)sizeof(address));
 	if (connection < 0) {
