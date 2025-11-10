@@ -8,5 +8,7 @@
 #define TIMEOUT_ERR 9
 #define FILE_UPLOAD_REQ 10
 #define FILE_DOWNLOAD_REQ 11
+#define FILE_UPLOAD_ACK 12
+#define FILE_UPLOAD_DENY 13
 
 #endif

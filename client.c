@@ -53,13 +53,13 @@ int main(void) {
 					printf("Password accepted\n");
 					write_to(STDOUT_FILENO, "File upload or download? (U/D): ");
 					char buffer[BUF_SIZE];
-					int read_bytes = read_from(STDIN_FILENO, buffer, BUF_SIZE); 
+					read_bytes = read_from(STDIN_FILENO, buffer, BUF_SIZE); 
 					if (buffer[0] == 'U') {
-						init_file_upload();
+						init_file_upload(client_fd);
 						continue;
 					}
 					if (buffer[0] == 'D') {
-						init_file_download();
+						//init_file_download();
 						continue;
 					}
 					else {
@@ -71,47 +71,6 @@ int main(void) {
 		}
 	}
 }
-
-/*	if (argc == 1) {
-		char *message = "Hello Server!\n";
-		size_t w_bytes = write(client_fd, message, strlen(message));
-
-		if (w_bytes < 0) {
-			perror("Write failed");
-			return 1;
-		}
-	} else {
-		for (int i = 1; i < argc; i++) {
-			char buffer[1024];
-			memset(&buffer, 0, sizeof(buffer));
-
-			int input_fd = open(args[i], O_RDONLY);
-			if (input_fd < 0) {
-				perror("Failed to open file");
-				return 1;
-			}
-
-			size_t r_bytes;
-			while ((r_bytes = read(input_fd, buffer, (size_t)1024)) != 0) {
-				if (r_bytes < 0) {
-					perror("Failed to read from file");
-					return 1;
-				}
-
-				printf("Read %zu bytes from %s\n", r_bytes, args[i]);
-
-				int w_bytes = write(client_fd, buffer, r_bytes);
-				if (w_bytes < 0) {
-					perror("Failed to write buffer to server");
-					return 1;
-				}
-
-				printf("Wrote %d bytes to server\n", w_bytes);
-			}
-			close(input_fd);
-		}
-	}
-	*/
 
 int get_passwrd(char* buf, ssize_t size) {
 	write_to(STDOUT_FILENO, "Password: ");
@@ -129,7 +88,7 @@ int pass_exchange(int server_fd, char* passwrd) {
 		return 1;
 	}
 	
-	read_from(server_fd, &server_code, sizeof(server_code));
+	get_code(server_fd, &server_code, sizeof(server_code));
 
 	server_code = ntohl(server_code);
 
@@ -161,7 +120,7 @@ int write_to(int fd, char* string) {
 
 int send_code(int fd, int code) {
 	code = htonl(code);
-	if (write(fd, code, sizeof(code)) < 0) {
+	if (write(fd, &code, sizeof(code)) < 0) {
 		perror("Write failed");
 		exit(1);
 	}
@@ -178,12 +137,44 @@ int read_from(int fd, char* buffer, size_t num_bytes) {
 }
 
 int init_file_upload(int server_fd) {
-	int server_code = NULL;
+	int server_code = 0;
 	send_code(server_fd, FILE_UPLOAD_REQ);
 
-	int read_bytes = read_from(server_fd, &server_code, sizeof(server_code));
+	get_code(server_fd, &server_code, sizeof(server_code));
 	server_code = ntohl(server_code);
-	if (server_code == FILE_UPLOAD_ACK) {
-		//
+
+	if (server_code != FILE_UPLOAD_ACK) {
+		write_to(STDOUT_FILENO, "File upload rejected by server\n");
+		return 1;
 	}
+
+	char filepath[BUF_SIZE];
+	write_to(STDOUT_FILENO, "Path to file: ");
+	int num_bytes = read_from(STDIN_FILENO, filepath, sizeof(filepath));
+	filepath[num_bytes] = '\0';
+	int file = open(filepath, O_RDONLY);
+	if (file < 0) {
+		perror("Failed to open file");
+		exit(1);
+	}
+
+	char file_buffer[4096];
+	while(1) {
+		int read_bytes = read_from(file, file_buffer, sizeof(file_buffer));
+		if (read_bytes == 0) {
+			break;
+		}
+		write_to(server_fd, file_buffer);
+	}
+	write_to(STDOUT_FILENO, "File upload complete\n");
+	return 0;
+}
+
+int get_code(int fd, int* buffer, size_t num_bytes) {
+	int num_bytes_read = read(fd, buffer, num_bytes);
+	if (num_bytes_read < 0) {
+		perror("Read failed");
+		exit(1);
+	}
+	return num_bytes_read;
 }
