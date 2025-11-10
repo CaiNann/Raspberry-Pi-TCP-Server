@@ -37,23 +37,18 @@ int main(void) {
 	printf("Successfully connected to server...\n");
 	
 	while (1) {
-		printf("About to read from server to wait for code\n");
 		ssize_t read_bytes = read(client_fd, &server_sig, sizeof(server_sig)); 
 		server_sig = ntohl(server_sig);
-		printf("Code read from server: %d\n", server_sig);
 		if (read_bytes < 0) {
 			perror("Read from server failed");
 			exit(1);
 		}
 
-		printf("Entering switch statement\n");
 		switch (server_sig) {
 			case REQ_PASSWRD: {
 				char passwrd[128];
 				get_passwrd(passwrd, sizeof(passwrd));
-				printf("Got password from user: %s\n", passwrd);
 				int exchange = pass_exchange(client_fd, passwrd);
-				printf("Exchange return: %d\n", exchange);
 				if (exchange == 0) {
 					printf("Password accepted\n");
 					close(client_fd);
@@ -116,7 +111,6 @@ int get_passwrd(char* buf, ssize_t size) {
 		return 1;
 	}
 	buf[bytes_read - 1] = '\0';
-	printf("Password entered from user: %s\n", buf);
 	return 0;
 }
 
