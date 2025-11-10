@@ -98,6 +98,7 @@ int check_passwrd(int client_fd) {
 			exit(1);
 		}
 		int pass_read = read(client_fd, buffer, 65);
+		printf("Bytes read: %d\n", pass_read);
 		if (pass_read < 0) {
 			perror("Reading password failed");
 			exit(1);

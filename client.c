@@ -124,7 +124,7 @@ int pass_exchange(int server_fd, char* passwrd) {
 
 	int server_code = 0;
 
-	if (write(server_fd, passwrd, sizeof(passwrd)) < 0) {
+	if (write(server_fd, passwrd, strlen(passwrd)) < 0) {
 		perror("Write failed");
 		return 1;
 	}
