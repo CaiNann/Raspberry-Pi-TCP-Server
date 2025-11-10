@@ -6,5 +6,7 @@
 #define CHARLIM_PASSWRD 7
 #define DENY_PASSWRD 8
 #define TIMEOUT_ERR 9
+#define FILE_UPLOAD_REQ 10
+#define FILE_DOWNLOAD_REQ 11
 
 #endif

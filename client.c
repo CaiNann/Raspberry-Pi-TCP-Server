@@ -159,6 +159,15 @@ int write_to(int fd, char* string) {
 	return 0;
 }
 
+int send_code(int fd, int code) {
+	code = htonl(code);
+	if (write(fd, code, sizeof(code)) < 0) {
+		perror("Write failed");
+		exit(1);
+	}
+	return 0;
+}
+
 int read_from(int fd, char* buffer, size_t num_bytes) {
 	int num_bytes_read = read(fd, buffer, num_bytes);
 	if (num_bytes_read < 0) {
@@ -166,4 +175,15 @@ int read_from(int fd, char* buffer, size_t num_bytes) {
 		exit(1);
 	}
 	return num_bytes_read;
+}
+
+int init_file_upload(int server_fd) {
+	int server_code = NULL;
+	send_code(server_fd, FILE_UPLOAD_REQ);
+
+	int read_bytes = read_from(server_fd, &server_code, sizeof(server_code));
+	server_code = ntohl(server_code);
+	if (server_code == FILE_UPLOAD_ACK) {
+		//
+	}
 }
