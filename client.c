@@ -18,6 +18,9 @@
 int server_sig;
 
 int main(void) {
+	char cwd[256];
+	getcwd(cwd, sizeof(cwd));
+	printf("Working directory: %s\n", cwd);
 	int client_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (client_fd < 0) {
 		perror("Socket failed");
@@ -153,14 +156,19 @@ int init_file_upload(int server_fd) {
 	write_to(STDOUT_FILENO, "Path to file: ");
 	int num_bytes = read_from(STDIN_FILENO, filepath, sizeof(filepath));
 	filepath[num_bytes] = '\0';
-	char* filename = basename(filepath);
+	printf("Filepath given by user: %s\n", filepath);
+	if (strchr(filepath, '/') != NULL) {
+		char* filename = basename(filepath);
+		write_to(server_fd, filename);
+	} else {
+		write_to(server_fd, filepath);
+	}
 	int file = open(filepath, O_RDONLY);
 	if (file < 0) {
 		perror("Failed to open file");
 		exit(1);
 	}
 
-	write_to(server_fd, filename);
 
 	char file_buffer[4096];
 	while(1) {
