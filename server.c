@@ -14,6 +14,7 @@
 #define BUF_SIZE 128
 
 int main(void) {
+	int status_code = 0;
 
 	int server_fd = start_server();
 
@@ -35,14 +36,31 @@ int main(void) {
 
 		printf("Connection accepted!\n");
 
-		char buffer[1024] = {0};
-		size_t bytes = read(client_fd, buffer, 1024);
-		if (bytes < 0) {
+		if (read(client_fd, &status_code, sizeof(status_code)) < 0) {
 			perror("Read failed");
 			exit(1);
 		}
 
-		printf("%zd bytes read from client: %s\n", bytes, buffer);
+		char buffer[1028];
+		int FILE_UPLOAD_ACK = htonl(FILE_UPLOAD_ACK);
+
+		if (ntohl(status_code) == FILE_UPLOAD_REQ) {
+			write(client_fd, FILE_UPLOAD_ACK, sizeof(FILE_UPLOAD_ACK));
+			char filename[1028];
+			int read_bytes = read(client_fd, filename, sizeof(filename));
+			if (read_bytes < 0) {
+				perror("Read failed");
+				exit(1);
+			}
+			int new_file = open(filename, O_WRONLY | O_CREAT);
+			while (1) {
+				int buffer_bytes = read(client_fd, buffer, sizeof(buffer));
+				if (strcmp(buffer, "UF") == 0) {
+					break;
+				}
+				write(new_file, buffer, buffer_bytes); 
+			}
+		}
 
 		close(client_fd);
 	}

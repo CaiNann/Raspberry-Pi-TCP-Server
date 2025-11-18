@@ -1,3 +1,4 @@
+#include <libgen.h>
 #include <stdio.h>
 #include "message_codes.h"
 #include "client.h"
@@ -152,11 +153,14 @@ int init_file_upload(int server_fd) {
 	write_to(STDOUT_FILENO, "Path to file: ");
 	int num_bytes = read_from(STDIN_FILENO, filepath, sizeof(filepath));
 	filepath[num_bytes] = '\0';
+	char* filename = basename(filepath);
 	int file = open(filepath, O_RDONLY);
 	if (file < 0) {
 		perror("Failed to open file");
 		exit(1);
 	}
+
+	write_to(server_fd, filename);
 
 	char file_buffer[4096];
 	while(1) {
@@ -166,6 +170,7 @@ int init_file_upload(int server_fd) {
 		}
 		write_to(server_fd, file_buffer);
 	}
+	write_to(server_fd, "UF");
 	write_to(STDOUT_FILENO, "File upload complete\n");
 	return 0;
 }
